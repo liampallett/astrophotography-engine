@@ -5,7 +5,7 @@ This module provides functions to calculate when and how well celestial objects
 are visible from a given location on Earth.
 """
 
-from astropy.coordinates import SkyCoord, EarthLocation, AltAz, get_sun, get_moon
+from astropy.coordinates import SkyCoord, EarthLocation, AltAz, GeocentricMeanEcliptic, get_sun, get_moon
 from astropy.time import Time
 import astropy.units as u
 from datetime import datetime, timedelta
@@ -176,16 +176,22 @@ def calculate_moon_data(
     # Get sun position for phase calculation
     sun_coord = get_sun(time_astropy)
     
-    # Calculate phase angle (angle between sun and moon as seen from Earth)
+    # Calculate phase angle (angular separation, 0-180°) for illumination
     phase_angle = sun_coord.separation(moon_coord)
     phase_angle_deg = float(phase_angle.deg)
-    
+
     # Calculate illumination fraction
     # Illumination = (1 + cos(phase_angle)) / 2
     illumination = (1 + np.cos(np.radians(phase_angle_deg))) / 2
-    
+
+    # Compute ecliptic elongation (0-360°) to distinguish waxing vs waning
+    ecliptic_frame = GeocentricMeanEcliptic(equinox=time_astropy)
+    moon_lon = moon_coord.transform_to(ecliptic_frame).lon
+    sun_lon = sun_coord.transform_to(ecliptic_frame).lon
+    elongation_deg = float((moon_lon - sun_lon).wrap_at(360 * u.deg).deg)
+
     # Determine phase name
-    phase_name = get_moon_phase_name(phase_angle_deg)
+    phase_name = get_moon_phase_name(elongation_deg)
     
     return {
         'altitude': round(float(moon_altaz.alt.deg), 2),
@@ -196,29 +202,35 @@ def calculate_moon_data(
     }
 
 
-def get_moon_phase_name(phase_angle: float) -> str:
+def get_moon_phase_name(elongation: float) -> str:
     """
-    Convert phase angle to phase name.
-    
+    Convert ecliptic elongation (0-360°) to phase name.
+
+    Elongation is the moon's ecliptic longitude minus the sun's, wrapped to
+    0-360°.  0° = new moon, 180° = full moon; 0-180° = waxing, 180-360° = waning.
+
     Args:
-        phase_angle: Phase angle in degrees (0-180)
-        
+        elongation: Moon elongation in degrees (0-360)
+
     Returns:
         Phase name string
     """
-    
-    if phase_angle < 22.5:
+    if elongation < 22.5 or elongation >= 337.5:
         return "new"
-    elif phase_angle < 67.5:
+    elif elongation < 67.5:
         return "waxing_crescent"
-    elif phase_angle < 112.5:
+    elif elongation < 112.5:
         return "first_quarter"
-    elif phase_angle < 157.5:
+    elif elongation < 157.5:
         return "waxing_gibbous"
-    elif phase_angle < 180:
+    elif elongation < 202.5:
         return "full"
+    elif elongation < 247.5:
+        return "waning_gibbous"
+    elif elongation < 292.5:
+        return "last_quarter"
     else:
-        return "unknown"
+        return "waning_crescent"
 
 
 def calculate_sun_position(

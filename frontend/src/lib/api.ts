@@ -365,6 +365,9 @@ export function formatMoonPhase(phase: string): string {
     'first_quarter': 'First Quarter',
     'waxing_gibbous': 'Waxing Gibbous',
     'full': 'Full Moon',
+    'waning_gibbous': 'Waning Gibbous',
+    'last_quarter': 'Last Quarter',
+    'waning_crescent': 'Waning Crescent',
   };
   return phaseNames[phase] || phase;
 }

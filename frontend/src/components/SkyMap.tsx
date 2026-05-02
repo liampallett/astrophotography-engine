@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Chart as ChartJS,
-  RadialLinearScale,
+  ScatterController,
   PointElement,
   LineElement,
   Filler,
   Tooltip,
   Legend,
   LinearScale,
-  type ChartOptions,
 } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 
 // Register Chart.js components
 ChartJS.register(
-  RadialLinearScale,
+  ScatterController,
   PointElement,
   LineElement,
   Filler,
@@ -42,18 +41,21 @@ interface SkyMapProps {
   observationTime: string;
 }
 
-// Helper function to convert azimuth to chart angle (0° = North at top)
-const azimuthToChartAngle = (azimuth: number): number => {
-  // Chart.js polar: 0° is right (East), 90° is top (North)
-  // Azimuth: 0° is North, 90° is East, 180° is South, 270° is West
-  // Convert: chartAngle = 90 - azimuth
-  return (90 - azimuth + 360) % 360;
+// Convert altitude+azimuth to Cartesian x/y sky map coordinates.
+// North=up (+y), East=right (+x), zenith=origin, horizon=radius 90.
+const altAzToXY = (altitude: number, azimuth: number): { x: number; y: number } => {
+  const radius = 90 - altitude;
+  const rad = (azimuth * Math.PI) / 180;
+  return { x: Math.sin(rad) * radius, y: Math.cos(rad) * radius };
 };
 
-// Helper function to convert altitude to radius (0° = edge, 90° = center)
-const altitudeToRadius = (altitude: number): number => {
-  // Invert so 90° (zenith) is at center (0) and 0° (horizon) is at edge (90)
-  return 90 - altitude;
+// Generate a full circle of points at a given altitude for reference rings.
+const circleAt = (altitude: number): Array<{ x: number; y: number }> => {
+  const r = 90 - altitude;
+  return Array.from({ length: 361 }, (_, i) => {
+    const rad = (i * Math.PI) / 180;
+    return { x: Math.sin(rad) * r, y: Math.cos(rad) * r };
+  });
 };
 
 // Difficulty color mapping
@@ -88,91 +90,66 @@ const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, o
   // Calculate target positions based on current time
   const targetPositions = useMemo(() => {
     return targets.map(target => {
-      // For simplicity, we'll use peak altitude and estimate azimuth
-      // In a real implementation, you'd calculate actual alt/az for the current time
       const peakTime = new Date(target.visibility.peak_time);
-      const baseTime = new Date(observationTime);
-      
-      // Calculate time difference in hours
-      const hoursDiff = (currentTime.getTime() - peakTime.getTime()) / (1000 * 60 * 60);
-      
-      // Estimate altitude (peaks at peak_time, decreases as we move away)
+      const hoursDiff = (currentTime.getTime() - peakTime.getTime()) / 3600000;
+
+      // Altitude falls off ~10°/hr from peak; clamp to horizon
       const altitude = Math.max(0, target.visibility.peak_altitude - Math.abs(hoursDiff) * 10);
-      
-      // Estimate azimuth based on time (simplified celestial motion)
-      // Objects rise in the east (90°), transit south (180°), set in west (270°)
-      const baseAzimuth = 180; // South at peak
-      const azimuth = (baseAzimuth + hoursDiff * 15 + 360) % 360; // 15° per hour
-      
-      return {
-        ...target,
-        altitude,
-        azimuth,
-        chartAngle: azimuthToChartAngle(azimuth),
-        radius: altitudeToRadius(altitude),
-      };
+      // Objects transit south (180°) at peak, drift 15°/hr due to Earth's rotation
+      const azimuth = (180 + hoursDiff * 15 + 360) % 360;
+      const { x, y } = altAzToXY(altitude, azimuth);
+
+      return { ...target, altitude, azimuth, x, y };
     });
   }, [targets, currentTime, observationTime]);
 
   // Prepare chart data
   const chartData = {
     datasets: [
-      // Horizon line (altitude = 0°)
+      // Horizon circle (altitude = 0°)
       {
         label: 'Horizon',
-        data: Array.from({ length: 360 }, (_, i) => ({
-          x: i,
-          y: 90, // radius for 0° altitude
-        })),
-        borderColor: 'rgba(156, 163, 175, 0.5)', // gray-400
+        data: circleAt(0),
+        borderColor: 'rgba(156, 163, 175, 0.6)',
         borderWidth: 2,
         pointRadius: 0,
         fill: false,
         showLine: true,
       },
-      // Altitude circles (30°, 60°)
+      // 30° altitude reference circle
       {
         label: '30° Altitude',
-        data: Array.from({ length: 360 }, (_, i) => ({
-          x: i,
-          y: 60, // radius for 30° altitude
-        })),
-        borderColor: 'rgba(107, 114, 128, 0.3)', // gray-500
+        data: circleAt(30),
+        borderColor: 'rgba(107, 114, 128, 0.35)',
         borderWidth: 1,
         borderDash: [5, 5],
         pointRadius: 0,
         fill: false,
         showLine: true,
       },
+      // 60° altitude reference circle
       {
         label: '60° Altitude',
-        data: Array.from({ length: 360 }, (_, i) => ({
-          x: i,
-          y: 30, // radius for 60° altitude
-        })),
-        borderColor: 'rgba(107, 114, 128, 0.3)', // gray-500
+        data: circleAt(60),
+        borderColor: 'rgba(107, 114, 128, 0.35)',
         borderWidth: 1,
         borderDash: [5, 5],
         pointRadius: 0,
         fill: false,
         showLine: true,
       },
-      // Moon position
-      ...(moon && moon.altitude > 0
+      // Moon position (only when altitude and azimuth are known)
+      ...(moon && moon.altitude > 0 && moon.azimuth != null
         ? [
             {
               label: `Moon (${moon.phase})`,
-              data: [
-                {
-                  x: azimuthToChartAngle(moon.azimuth),
-                  y: altitudeToRadius(moon.altitude),
-                },
-              ],
-              backgroundColor: 'rgba(251, 191, 36, 0.8)', // amber-400
+              data: [altAzToXY(moon.altitude, moon.azimuth)],
+              backgroundColor: 'rgba(251, 191, 36, 0.8)',
               borderColor: 'rgb(251, 191, 36)',
               borderWidth: 2,
               pointRadius: 8,
-              pointStyle: 'circle',
+              pointStyle: 'circle' as const,
+              showLine: false,
             },
           ]
         : []),
@@ -181,20 +158,18 @@ const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, o
         .filter(target => target.altitude > 0)
         .map(target => ({
           label: target.name,
-          data: [
-            {
-              x: target.chartAngle,
-              y: target.radius,
-            },
-          ],
+          data: [{ x: target.x, y: target.y }],
           backgroundColor: getDifficultyColor(target.difficulty),
           borderColor: getDifficultyColor(target.difficulty),
           borderWidth: 2,
           pointRadius: 6,
-          pointStyle: 'circle',
+          pointStyle: 'circle' as const,
+          showLine: false,
         })),
     ],
   };
+
+  const REFERENCE_LABELS = new Set(['Horizon', '30° Altitude', '60° Altitude']);
 
   // Chart options
   const options: any = {
@@ -202,56 +177,36 @@ const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, o
     maintainAspectRatio: true,
     aspectRatio: 1,
     scales: {
-      r: {
-        min: 0,
-        max: 90,
-        reverse: true, // So 0 (zenith) is at center
-        ticks: {
-          stepSize: 30,
-          callback: (value: any) => {
-            const altitude = 90 - Number(value);
-            return altitude === 90 ? 'Zenith' : `${altitude}°`;
-          },
-          color: 'rgb(156, 163, 175)', // gray-400
-          backdropColor: 'transparent',
-        },
-        grid: {
-          color: 'rgba(75, 85, 99, 0.3)', // gray-600
-          circular: true,
-        },
-        pointLabels: {
-          color: 'rgb(229, 231, 235)', // gray-200
-          font: {
-            size: 14,
-            weight: 'bold' as const,
-          },
-          callback: (_label: unknown, index: number) => {
-            const directions = ['E', 'N', 'W', 'S'];
-            return directions[Math.floor(index / 90)] || '';
-          },
-        },
-        angleLines: {
-          color: 'rgba(75, 85, 99, 0.3)', // gray-600
-        },
+      x: {
+        min: -100,
+        max: 100,
+        grid: { color: 'rgba(75, 85, 99, 0.2)', drawTicks: false },
+        ticks: { display: false },
+        border: { display: false },
+      },
+      y: {
+        min: -100,
+        max: 100,
+        grid: { color: 'rgba(75, 85, 99, 0.2)', drawTicks: false },
+        ticks: { display: false },
+        border: { display: false },
       },
     },
     plugins: {
       legend: {
-        display: false, // We'll create a custom legend
+        display: false,
       },
       tooltip: {
-        backgroundColor: 'rgba(17, 24, 39, 0.95)', // gray-900
-        titleColor: 'rgb(229, 231, 235)', // gray-200
+        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+        titleColor: 'rgb(229, 231, 235)',
         bodyColor: 'rgb(229, 231, 235)',
-        borderColor: 'rgb(75, 85, 99)', // gray-600
+        borderColor: 'rgb(75, 85, 99)',
         borderWidth: 1,
         padding: 12,
         displayColors: true,
+        filter: (item: any) => !REFERENCE_LABELS.has(item.dataset.label),
         callbacks: {
-          title: (context: any) => {
-            const datasetLabel = context[0].dataset.label;
-            return datasetLabel || '';
-          },
+          title: (context: any) => context[0].dataset.label || '',
           label: (context: any) => {
             const target = targetPositions.find(t => t.name === context.dataset.label);
             if (target) {
@@ -280,11 +235,16 @@ const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, o
         </p>
       </div>
 
-      {/* Chart Container */}
+      {/* Chart Container with compass labels */}
       <div className="relative w-full max-w-2xl mx-auto mb-6">
         <div className="aspect-square">
           <Chart type="scatter" data={chartData} options={options} />
         </div>
+        {/* Compass direction labels */}
+        <div className="absolute top-1 left-1/2 -translate-x-1/2 text-gray-200 font-bold text-sm pointer-events-none">N</div>
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-gray-200 font-bold text-sm pointer-events-none">S</div>
+        <div className="absolute left-1 top-1/2 -translate-y-1/2 text-gray-200 font-bold text-sm pointer-events-none">W</div>
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-200 font-bold text-sm pointer-events-none">E</div>
       </div>
 
       {/* Time Slider */}
@@ -332,9 +292,8 @@ const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, o
           )}
         </div>
         <div className="mt-3 text-xs text-gray-400">
-          <p>• Center = Zenith (directly overhead)</p>
-          <p>• Edge = Horizon (0° altitude)</p>
-          <p>• N = North, E = East, S = South, W = West</p>
+          <p>• Center = Zenith (directly overhead) &nbsp;|&nbsp; Edge = Horizon (0°)</p>
+          <p>• Dashed rings = 30° and 60° altitude</p>
         </div>
       </div>
 

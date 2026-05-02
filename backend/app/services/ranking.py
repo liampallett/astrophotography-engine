@@ -124,7 +124,7 @@ def calculate_brightness_score(magnitude: float) -> float:
         Score from 0-100
     """
     if magnitude < 5:
-        return 100 - (magnitude * 2)
+        return min(100, 100 - (magnitude * 2))
     elif magnitude < 8:
         return 90 - ((magnitude - 5) / 3) * 30
     elif magnitude < 10:

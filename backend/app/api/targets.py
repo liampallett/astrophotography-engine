@@ -24,7 +24,8 @@ from app.services.ranking import (
     calculate_target_score,
     determine_difficulty,
     get_equipment_match_description,
-    calculate_field_of_view
+    calculate_field_of_view,
+    calculate_size_match_score
 )
 
 router = APIRouter()
@@ -82,12 +83,13 @@ def calculate_targets(request: TargetCalculationRequest):
         
         # Get all Messier objects from database
         conn = get_db_connection()
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT * FROM messier_objects ORDER BY messier_number")
-        db_objects = cursor.fetchall()
-        conn.close()
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM messier_objects ORDER BY messier_number")
+            db_objects = cursor.fetchall()
+        finally:
+            conn.close()
         
         # Calculate visibility and score for each target
         scored_targets = []
@@ -135,12 +137,10 @@ def calculate_targets(request: TargetCalculationRequest):
             # Determine difficulty
             difficulty = determine_difficulty(target, equipment)
             
-            # Calculate equipment match
+            # Calculate equipment match based on how well the object fills the FOV
             fov = calculate_field_of_view(equipment)
-            size_ratio = target['size_arcmin'] / fov if fov > 0 else 0
-            equipment_match = get_equipment_match_description(
-                calculate_target_score(target, visibility, moon_separation, equipment)
-            )
+            size_match_score = calculate_size_match_score(target['size_arcmin'], fov)
+            equipment_match = get_equipment_match_description(size_match_score)
             
             # Create target model
             target_model = TargetModel(
@@ -222,13 +222,14 @@ def get_target_visibility(
     try:
         # Get target from database
         conn = get_db_connection()
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT * FROM messier_objects WHERE id = ?", (object_id,))
-        row = cursor.fetchone()
-        conn.close()
-        
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM messier_objects WHERE id = ?", (object_id,))
+            row = cursor.fetchone()
+        finally:
+            conn.close()
+
         if not row:
             raise HTTPException(
                 status_code=404,
