@@ -1,0 +1,178 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SkyMap from '../components/SkyMap.tsx';
+
+// Default sample data for demonstration
+const defaultTargets = [
+  {
+    id: "m31",
+    name: "M31 (Andromeda Galaxy)",
+    visibility: {
+      peak_altitude: 75,
+      peak_time: "2026-05-02T22:00:00Z"
+    },
+    difficulty: "Easy"
+  },
+  {
+    id: "m42",
+    name: "M42 (Orion Nebula)",
+    visibility: {
+      peak_altitude: 45,
+      peak_time: "2026-05-02T20:30:00Z"
+    },
+    difficulty: "Moderate"
+  },
+  {
+    id: "m13",
+    name: "M13 (Hercules Cluster)",
+    visibility: {
+      peak_altitude: 65,
+      peak_time: "2026-05-02T23:30:00Z"
+    },
+    difficulty: "Easy"
+  },
+  {
+    id: "m51",
+    name: "M51 (Whirlpool Galaxy)",
+    visibility: {
+      peak_altitude: 55,
+      peak_time: "2026-05-02T21:45:00Z"
+    },
+    difficulty: "Challenging"
+  },
+  {
+    id: "m57",
+    name: "M57 (Ring Nebula)",
+    visibility: {
+      peak_altitude: 70,
+      peak_time: "2026-05-03T00:15:00Z"
+    },
+    difficulty: "Moderate"
+  },
+  {
+    id: "m27",
+    name: "M27 (Dumbbell Nebula)",
+    visibility: {
+      peak_altitude: 60,
+      peak_time: "2026-05-02T22:45:00Z"
+    },
+    difficulty: "Easy"
+  }
+];
+
+const defaultMoon = {
+  altitude: 30,
+  azimuth: 120,
+  phase: "Waxing Crescent"
+};
+
+const defaultObservationTime = "2026-05-02T21:00:00Z";
+---
+
+<script is:inline>
+  // Check if we have calculation results in sessionStorage
+  const resultsData = sessionStorage.getItem('calculationResults');
+  const observationData = sessionStorage.getItem('observation');
+  
+  if (resultsData && observationData) {
+    const results = JSON.parse(resultsData);
+    const observation = JSON.parse(observationData);
+    
+    // Store for component to use
+    window.__SKYMAP_DATA__ = {
+      targets: results.targets,
+      moon: results.moon.altitude !== undefined ? {
+        altitude: results.moon.altitude,
+        azimuth: results.moon.azimuth,
+        phase: results.moon.phase
+      } : null,
+      observationTime: `${observation.date}T${observation.start_time}:00Z`,
+      useCalculatedData: true
+    };
+  }
+</script>
+
+<Layout title="Sky Map Demo - Astrophotography Engine">
+  <div class="min-h-screen bg-gray-900">
+    <div class="container mx-auto px-4 py-8">
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-4xl font-bold text-white mb-2">
+          Interactive Sky Map Demo
+        </h1>
+        <p class="text-gray-300">
+          Visualize celestial targets in the night sky with real-time position tracking
+        </p>
+      </div>
+
+      <!-- Info Banner -->
+      <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-6">
+        <h2 class="text-lg font-semibold text-blue-300 mb-2">
+          🌟 How to Use
+        </h2>
+        <ul class="text-blue-200 text-sm space-y-1">
+          <li>• Use the time slider to see how targets move across the sky</li>
+          <li>• Hover over markers to see detailed information</li>
+          <li>• Green = Easy, Yellow = Moderate, Red = Challenging</li>
+          <li>• Center of chart = Zenith (directly overhead)</li>
+          <li>• Edge of chart = Horizon (0° altitude)</li>
+        </ul>
+      </div>
+
+      <!-- Sky Map Component -->
+      <SkyMap
+        client:load
+        targets={defaultTargets}
+        moon={defaultMoon}
+        observationTime={defaultObservationTime}
+      />
+
+      <!-- Additional Information -->
+      <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-gray-800 rounded-lg p-6">
+          <h3 class="text-xl font-bold text-white mb-4">
+            About This Demo
+          </h3>
+          <p class="text-gray-300 mb-3">
+            This interactive sky map shows the positions of celestial targets in altitude/azimuth coordinates. 
+            The visualization helps you plan your astrophotography session by showing when targets are at 
+            optimal viewing positions.
+          </p>
+          <p class="text-gray-300">
+            The time slider allows you to see how target positions change throughout the night, helping you 
+            plan the best sequence for capturing multiple objects.
+          </p>
+        </div>
+
+        <div class="bg-gray-800 rounded-lg p-6">
+          <h3 class="text-xl font-bold text-white mb-4">
+            Target Information
+          </h3>
+          <div class="space-y-3">
+            {defaultTargets.map(target => (
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-white font-medium">{target.name}</span>
+                <span class="text-gray-400">
+                  Peak: {new Date(target.visibility.peak_time).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="mt-8 text-center">
+        <a 
+          href="/"
+          class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+        >
+          ← Back to Home
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>
