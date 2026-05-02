@@ -1,0 +1,217 @@
+---
+// Equipment Form Component
+---
+
+<div class="equipment-form-container bg-gray-800 rounded-lg p-6 mb-6">
+  <h2 class="text-2xl font-bold mb-4">🔭 Your Equipment</h2>
+  <p class="text-gray-400 mb-4">Enter your telescope and camera specifications</p>
+  
+  <div class="space-y-4">
+    <!-- Telescope Section -->
+    <div class="bg-gray-700 rounded-lg p-4">
+      <h3 class="text-lg font-semibold mb-3">Telescope</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="aperture" class="block text-sm font-medium mb-2">
+            Aperture (mm) <span class="text-red-400">*</span>
+          </label>
+          <input
+            type="number"
+            id="aperture"
+            step="1"
+            min="30"
+            max="2000"
+            placeholder="200"
+            value="200"
+            class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+          <p class="text-xs text-gray-400 mt-1">Diameter of your telescope's main lens/mirror</p>
+        </div>
+        <div>
+          <label for="focal-length" class="block text-sm font-medium mb-2">
+            Focal Length (mm) <span class="text-red-400">*</span>
+          </label>
+          <input
+            type="number"
+            id="focal-length"
+            step="1"
+            min="100"
+            max="10000"
+            placeholder="1000"
+            value="1000"
+            class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+          <p class="text-xs text-gray-400 mt-1">Distance from lens to focal point</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera Section -->
+    <div class="bg-gray-700 rounded-lg p-4">
+      <h3 class="text-lg font-semibold mb-3">Camera Sensor</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="sensor-width" class="block text-sm font-medium mb-2">
+            Sensor Width (mm) <span class="text-red-400">*</span>
+          </label>
+          <input
+            type="number"
+            id="sensor-width"
+            step="0.1"
+            min="1"
+            max="100"
+            placeholder="23.5"
+            value="23.5"
+            class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+          <p class="text-xs text-gray-400 mt-1">Horizontal sensor dimension</p>
+        </div>
+        <div>
+          <label for="sensor-height" class="block text-sm font-medium mb-2">
+            Sensor Height (mm) <span class="text-red-400">*</span>
+          </label>
+          <input
+            type="number"
+            id="sensor-height"
+            step="0.1"
+            min="1"
+            max="100"
+            placeholder="15.6"
+            value="15.6"
+            class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+          <p class="text-xs text-gray-400 mt-1">Vertical sensor dimension</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calculated Field of View -->
+    <div class="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-4">
+      <h3 class="text-lg font-semibold mb-2">📐 Calculated Field of View</h3>
+      <div class="grid grid-cols-2 gap-4 text-center">
+        <div>
+          <p class="text-2xl font-bold text-blue-400" id="fov-width">--</p>
+          <p class="text-sm text-gray-400">Width (arcminutes)</p>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-blue-400" id="fov-height">--</p>
+          <p class="text-sm text-gray-400">Height (arcminutes)</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-400 mt-2 text-center">
+        This helps match targets to your equipment
+      </p>
+    </div>
+
+    <!-- Common Presets -->
+    <div>
+      <h3 class="text-sm font-medium mb-2">Quick Presets</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <button
+          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+          data-aperture="80"
+          data-focal="400"
+          data-width="23.5"
+          data-height="15.6"
+        >
+          80mm Refractor
+        </button>
+        <button
+          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+          data-aperture="200"
+          data-focal="1000"
+          data-width="23.5"
+          data-height="15.6"
+        >
+          8" SCT
+        </button>
+        <button
+          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+          data-aperture="150"
+          data-focal="750"
+          data-width="36"
+          data-height="24"
+        >
+          6" Newtonian
+        </button>
+        <button
+          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+          data-aperture="102"
+          data-focal="714"
+          data-width="13.2"
+          data-height="8.8"
+        >
+          102mm APO
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Get form elements
+  const apertureInput = document.getElementById('aperture') as HTMLInputElement;
+  const focalLengthInput = document.getElementById('focal-length') as HTMLInputElement;
+  const sensorWidthInput = document.getElementById('sensor-width') as HTMLInputElement;
+  const sensorHeightInput = document.getElementById('sensor-height') as HTMLInputElement;
+  
+  const fovWidthDisplay = document.getElementById('fov-width') as HTMLElement;
+  const fovHeightDisplay = document.getElementById('fov-height') as HTMLElement;
+
+  // Calculate field of view
+  function calculateFOV() {
+    const focalLength = parseFloat(focalLengthInput?.value);
+    const sensorWidth = parseFloat(sensorWidthInput?.value);
+    const sensorHeight = parseFloat(sensorHeightInput?.value);
+
+    if (isNaN(focalLength) || isNaN(sensorWidth) || isNaN(sensorHeight)) {
+      fovWidthDisplay.textContent = '--';
+      fovHeightDisplay.textContent = '--';
+      return;
+    }
+
+    // FOV = 2 * arctan(sensor_size / (2 * focal_length)) * (180 / π) * 60
+    const fovWidthRad = 2 * Math.atan(sensorWidth / (2 * focalLength));
+    const fovHeightRad = 2 * Math.atan(sensorHeight / (2 * focalLength));
+    
+    const fovWidthArcmin = (fovWidthRad * 180 / Math.PI) * 60;
+    const fovHeightArcmin = (fovHeightRad * 180 / Math.PI) * 60;
+
+    fovWidthDisplay.textContent = fovWidthArcmin.toFixed(1);
+    fovHeightDisplay.textContent = fovHeightArcmin.toFixed(1);
+
+    // Store in sessionStorage
+    sessionStorage.setItem('equipment', JSON.stringify({
+      aperture_mm: parseFloat(apertureInput?.value),
+      focal_length_mm: focalLength,
+      sensor_width_mm: sensorWidth,
+      sensor_height_mm: sensorHeight
+    }));
+  }
+
+  // Update FOV when inputs change
+  focalLengthInput?.addEventListener('input', calculateFOV);
+  sensorWidthInput?.addEventListener('input', calculateFOV);
+  sensorHeightInput?.addEventListener('input', calculateFOV);
+  apertureInput?.addEventListener('input', calculateFOV);
+
+  // Handle preset buttons
+  const presetButtons = document.querySelectorAll('.preset-btn');
+  presetButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const btn = button as HTMLButtonElement;
+      apertureInput.value = btn.dataset.aperture || '';
+      focalLengthInput.value = btn.dataset.focal || '';
+      sensorWidthInput.value = btn.dataset.width || '';
+      sensorHeightInput.value = btn.dataset.height || '';
+      calculateFOV();
+    });
+  });
+
+  // Calculate initial FOV
+  calculateFOV();
+</script>

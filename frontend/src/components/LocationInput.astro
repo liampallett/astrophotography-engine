@@ -1,0 +1,192 @@
+---
+// Location Input Component with Geocoding
+---
+
+<div class="location-input-container bg-gray-800 rounded-lg p-6 mb-6">
+  <h2 class="text-2xl font-bold mb-4">📍 Your Location</h2>
+  <p class="text-gray-400 mb-4">Enter your city or address to find optimal targets for your location</p>
+  
+  <div class="space-y-4">
+    <!-- Address Search -->
+    <div>
+      <label for="address-input" class="block text-sm font-medium mb-2">
+        City or Address
+      </label>
+      <div class="flex gap-2">
+        <input
+          type="text"
+          id="address-input"
+          placeholder="e.g., London, UK or New York City"
+          class="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <button
+          id="geocode-btn"
+          class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition"
+        >
+          Search
+        </button>
+      </div>
+      <p id="geocode-error" class="text-red-400 text-sm mt-2 hidden"></p>
+      <p id="geocode-result" class="text-green-400 text-sm mt-2 hidden"></p>
+    </div>
+
+    <!-- Manual Coordinates -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label for="latitude" class="block text-sm font-medium mb-2">
+          Latitude
+        </label>
+        <input
+          type="number"
+          id="latitude"
+          step="0.000001"
+          min="-90"
+          max="90"
+          placeholder="51.5074"
+          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+      <div>
+        <label for="longitude" class="block text-sm font-medium mb-2">
+          Longitude
+        </label>
+        <input
+          type="number"
+          id="longitude"
+          step="0.000001"
+          min="-180"
+          max="180"
+          placeholder="-0.1278"
+          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+    </div>
+
+    <!-- Timezone and Elevation -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label for="timezone" class="block text-sm font-medium mb-2">
+          Timezone
+        </label>
+        <input
+          type="text"
+          id="timezone"
+          placeholder="Europe/London"
+          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          readonly
+        />
+      </div>
+      <div>
+        <label for="elevation" class="block text-sm font-medium mb-2">
+          Elevation (meters)
+        </label>
+        <input
+          type="number"
+          id="elevation"
+          step="1"
+          min="0"
+          placeholder="0"
+          value="0"
+          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { geocodeAddress, getTimezone } from '../lib/api';
+
+  const addressInput = document.getElementById('address-input') as HTMLInputElement;
+  const geocodeBtn = document.getElementById('geocode-btn') as HTMLButtonElement;
+  const geocodeError = document.getElementById('geocode-error') as HTMLParagraphElement;
+  const geocodeResult = document.getElementById('geocode-result') as HTMLParagraphElement;
+  
+  const latitudeInput = document.getElementById('latitude') as HTMLInputElement;
+  const longitudeInput = document.getElementById('longitude') as HTMLInputElement;
+  const timezoneInput = document.getElementById('timezone') as HTMLInputElement;
+  const elevationInput = document.getElementById('elevation') as HTMLInputElement;
+
+  // Geocode address
+  geocodeBtn?.addEventListener('click', async () => {
+    const address = addressInput?.value.trim();
+    if (!address) {
+      showError('Please enter an address');
+      return;
+    }
+
+    geocodeBtn.disabled = true;
+    geocodeBtn.textContent = 'Searching...';
+    hideMessages();
+
+    try {
+      const result = await geocodeAddress(address);
+      
+      // Update form fields
+      latitudeInput.value = result.latitude.toString();
+      longitudeInput.value = result.longitude.toString();
+      timezoneInput.value = result.timezone;
+      elevationInput.value = result.elevation.toString();
+      
+      showResult(`Found: ${result.display_name}`);
+      
+      // Store in sessionStorage for use in other components
+      sessionStorage.setItem('location', JSON.stringify({
+        latitude: result.latitude,
+        longitude: result.longitude,
+        timezone: result.timezone,
+        elevation: result.elevation,
+        display_name: result.display_name
+      }));
+      
+    } catch (error) {
+      showError('Failed to find location. Please try again or enter coordinates manually.');
+      console.error(error);
+    } finally {
+      geocodeBtn.disabled = false;
+      geocodeBtn.textContent = 'Search';
+    }
+  });
+
+  // Auto-detect timezone when coordinates change
+  latitudeInput?.addEventListener('blur', updateTimezone);
+  longitudeInput?.addEventListener('blur', updateTimezone);
+
+  async function updateTimezone() {
+    const lat = parseFloat(latitudeInput?.value);
+    const lon = parseFloat(longitudeInput?.value);
+    
+    if (isNaN(lat) || isNaN(lon)) return;
+    
+    try {
+      const result = await getTimezone(lat, lon);
+      timezoneInput.value = result.timezone;
+    } catch (error) {
+      console.error('Failed to get timezone:', error);
+    }
+  }
+
+  function showError(message: string) {
+    geocodeError.textContent = message;
+    geocodeError.classList.remove('hidden');
+    geocodeResult.classList.add('hidden');
+  }
+
+  function showResult(message: string) {
+    geocodeResult.textContent = message;
+    geocodeResult.classList.remove('hidden');
+    geocodeError.classList.add('hidden');
+  }
+
+  function hideMessages() {
+    geocodeError.classList.add('hidden');
+    geocodeResult.classList.add('hidden');
+  }
+
+  // Allow Enter key to trigger search
+  addressInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      geocodeBtn?.click();
+    }
+  });
+</script>

@@ -1,0 +1,299 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LocationInput from '../components/LocationInput.astro';
+import EquipmentForm from '../components/EquipmentForm.astro';
+import ObservationSelector from '../components/ObservationSelector.astro';
+import { checkApiHealth } from '../lib/api';
+
+// Check if backend is running
+let apiHealthy = false;
+try {
+  apiHealthy = await checkApiHealth();
+} catch (e) {
+  apiHealthy = false;
+}
+---
+
+<Layout title="Astrophotography Target Finder">
+  <div class="max-w-6xl mx-auto">
+    <!-- Hero Section -->
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+        🔭 Astrophotography Target Finder
+      </h1>
+      <p class="text-xl text-gray-300 mb-2">
+        Discover the best celestial targets for your location and equipment
+      </p>
+      <p class="text-sm text-gray-400">
+        Powered by professional astronomy calculations with Astropy
+      </p>
+    </div>
+
+    <!-- API Status Alert -->
+    {!apiHealthy && (
+      <div class="bg-red-900 border border-red-700 text-red-100 px-6 py-4 rounded-lg mb-8">
+        <div class="flex items-start gap-3">
+          <span class="text-2xl">⚠️</span>
+          <div>
+            <p class="font-bold mb-1">Backend API Not Running</p>
+            <p class="text-sm mb-2">The backend server needs to be started to calculate targets.</p>
+            <div class="bg-red-800 rounded p-3 text-xs font-mono">
+              <p class="mb-1">Terminal 1 - Backend:</p>
+              <p>cd astrophotography-engine/backend</p>
+              <p>source venv/bin/activate</p>
+              <p>uvicorn app.main:app --reload</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- Main Form -->
+    <div id="input-section">
+      <LocationInput />
+      <EquipmentForm />
+      <ObservationSelector />
+
+      <!-- Calculate Button -->
+      <div class="text-center mb-8">
+        <button
+          id="calculate-btn"
+          class="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg font-bold text-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          disabled={!apiHealthy}
+        >
+          🌟 Calculate Best Targets
+        </button>
+        <p class="text-sm text-gray-400 mt-2">
+          Get personalized recommendations based on your inputs
+        </p>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-section" class="hidden text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+      <p class="text-xl font-semibold">Calculating optimal targets...</p>
+      <p class="text-gray-400 mt-2">Analyzing visibility, moon position, and equipment match</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-section" class="hidden bg-red-900 border border-red-700 rounded-lg p-6 mb-8">
+      <h3 class="text-xl font-bold mb-2">❌ Calculation Error</h3>
+      <p id="error-message" class="text-red-100"></p>
+      <button
+        id="retry-btn"
+        class="mt-4 px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg transition"
+      >
+        Try Again
+      </button>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results-section" class="hidden">
+      <div class="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg p-6 mb-8">
+        <h2 class="text-3xl font-bold mb-2">🎯 Recommended Targets</h2>
+        <p class="text-gray-300">Here are the best targets for your observation session</p>
+        <div id="moon-info" class="mt-4 flex items-center gap-4 text-sm">
+          <span class="px-3 py-1 bg-gray-800 rounded-lg">
+            <span class="font-semibold">Moon Phase:</span> <span id="moon-phase">--</span>
+          </span>
+          <span class="px-3 py-1 bg-gray-800 rounded-lg">
+            <span class="font-semibold">Illumination:</span> <span id="moon-illumination">--</span>%
+          </span>
+        </div>
+      </div>
+
+      <div id="targets-container" class="grid grid-cols-1 gap-6 mb-8">
+        <!-- Target cards will be inserted here -->
+      </div>
+
+      <div class="text-center">
+        <button
+          id="new-calculation-btn"
+          class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition"
+        >
+          ← New Calculation
+        </button>
+      </div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 mt-12">
+      <h3 class="text-xl font-bold mb-3">ℹ️ How It Works</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div>
+          <h4 class="font-semibold text-blue-400 mb-2">1. Location</h4>
+          <p class="text-gray-400">Enter your observing location to calculate which objects are visible from your site.</p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-purple-400 mb-2">2. Equipment</h4>
+          <p class="text-gray-400">Specify your telescope and camera to match targets to your field of view.</p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-green-400 mb-2">3. Timing</h4>
+          <p class="text-gray-400">Choose your observation date and time to get peak visibility windows.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { calculateTargets, formatMoonPhase, type TargetCalculationRequest } from '../lib/api';
+
+  const calculateBtn = document.getElementById('calculate-btn') as HTMLButtonElement;
+  const inputSection = document.getElementById('input-section') as HTMLElement;
+  const loadingSection = document.getElementById('loading-section') as HTMLElement;
+  const errorSection = document.getElementById('error-section') as HTMLElement;
+  const resultsSection = document.getElementById('results-section') as HTMLElement;
+  const errorMessage = document.getElementById('error-message') as HTMLElement;
+  const retryBtn = document.getElementById('retry-btn') as HTMLButtonElement;
+  const newCalculationBtn = document.getElementById('new-calculation-btn') as HTMLButtonElement;
+  const targetsContainer = document.getElementById('targets-container') as HTMLElement;
+  const moonPhaseEl = document.getElementById('moon-phase') as HTMLElement;
+  const moonIlluminationEl = document.getElementById('moon-illumination') as HTMLElement;
+
+  // Calculate targets
+  calculateBtn?.addEventListener('click', async () => {
+    try {
+      // Get data from sessionStorage
+      const location = JSON.parse(sessionStorage.getItem('location') || '{}');
+      const equipment = JSON.parse(sessionStorage.getItem('equipment') || '{}');
+      const observation = JSON.parse(sessionStorage.getItem('observation') || '{}');
+      const preferences = JSON.parse(sessionStorage.getItem('preferences') || '{}');
+
+      // Validate required fields
+      if (!location.latitude || !location.longitude) {
+        throw new Error('Please enter your location');
+      }
+      if (!equipment.aperture_mm || !equipment.focal_length_mm) {
+        throw new Error('Please enter your equipment details');
+      }
+      if (!observation.date || !observation.start_time) {
+        throw new Error('Please select observation date and time');
+      }
+
+      // Show loading
+      inputSection.classList.add('hidden');
+      errorSection.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      loadingSection.classList.remove('hidden');
+
+      // Build request
+      const request: TargetCalculationRequest = {
+        location,
+        equipment,
+        observation,
+        preferences
+      };
+
+      // Call API
+      const response = await calculateTargets(request);
+
+      // Display results
+      displayResults(response);
+
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'An error occurred');
+    }
+  });
+
+  function displayResults(response: any) {
+    // Hide loading, show results
+    loadingSection.classList.add('hidden');
+    resultsSection.classList.remove('hidden');
+
+    // Display moon info
+    moonPhaseEl.textContent = formatMoonPhase(response.moon.phase);
+    moonIlluminationEl.textContent = (response.moon.illumination * 100).toFixed(0);
+
+    // Display targets
+    targetsContainer.innerHTML = '';
+    response.targets.forEach((target: any, index: number) => {
+      const card = createTargetCard(target, index + 1);
+      targetsContainer.appendChild(card);
+    });
+
+    // Scroll to results
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function createTargetCard(target: any, rank: number): HTMLElement {
+    const card = document.createElement('div');
+    card.className = 'bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-blue-500 transition';
+    
+    const scoreColor = target.score >= 80 ? 'text-green-400' : 
+                       target.score >= 60 ? 'text-blue-400' : 
+                       target.score >= 40 ? 'text-yellow-400' : 'text-red-400';
+    
+    const difficultyColor = target.difficulty === 'easy' ? 'bg-green-600' :
+                           target.difficulty === 'moderate' ? 'bg-yellow-600' : 'bg-red-600';
+    
+    card.innerHTML = `
+      <div class="flex justify-between items-start mb-3">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-2xl font-bold text-gray-500">#${rank}</span>
+            <h3 class="text-xl font-bold">${target.id} - ${target.name}</h3>
+          </div>
+          <p class="text-sm text-gray-400">${target.constellation} • ${target.type}</p>
+        </div>
+        <div class="text-right">
+          <div class="text-3xl font-bold ${scoreColor}">${target.score}</div>
+          <p class="text-xs text-gray-400">Score</p>
+        </div>
+      </div>
+      <p class="text-gray-300 text-sm mb-4">${target.description}</p>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <span class="px-2 py-1 rounded text-xs font-medium ${difficultyColor}">
+          ${target.difficulty.charAt(0).toUpperCase() + target.difficulty.slice(1)}
+        </span>
+        <span class="px-2 py-1 rounded text-xs font-medium bg-purple-600">
+          Mag ${target.magnitude}
+        </span>
+        <span class="px-2 py-1 rounded text-xs font-medium bg-indigo-600">
+          ${target.size_arcmin}' size
+        </span>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <div class="bg-gray-700 rounded p-2">
+          <p class="text-gray-400 text-xs">Peak Time</p>
+          <p class="font-semibold">${new Date(target.visibility.peak_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+        <div class="bg-gray-700 rounded p-2">
+          <p class="text-gray-400 text-xs">Peak Alt</p>
+          <p class="font-semibold">${target.visibility.peak_altitude.toFixed(1)}°</p>
+        </div>
+        <div class="bg-gray-700 rounded p-2">
+          <p class="text-gray-400 text-xs">Duration</p>
+          <p class="font-semibold">${target.visibility.duration_hours.toFixed(1)}h</p>
+        </div>
+        <div class="bg-gray-700 rounded p-2">
+          <p class="text-gray-400 text-xs">Moon Sep</p>
+          <p class="font-semibold">${target.moon_separation.toFixed(0)}°</p>
+        </div>
+      </div>
+    `;
+    
+    return card;
+  }
+
+  function showError(message: string) {
+    loadingSection.classList.add('hidden');
+    errorSection.classList.remove('hidden');
+    errorMessage.textContent = message;
+  }
+
+  // Retry button
+  retryBtn?.addEventListener('click', () => {
+    errorSection.classList.add('hidden');
+    inputSection.classList.remove('hidden');
+  });
+
+  // New calculation button
+  newCalculationBtn?.addEventListener('click', () => {
+    resultsSection.classList.add('hidden');
+    inputSection.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>

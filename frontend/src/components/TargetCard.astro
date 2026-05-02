@@ -1,0 +1,108 @@
+---
+// Target Card Component
+import type { Target } from '../lib/api';
+
+interface Props {
+  target: Target;
+  rank?: number;
+}
+
+const { target, rank } = Astro.props;
+
+// Determine difficulty color
+const difficultyColors: Record<string, string> = {
+  'easy': 'bg-green-600',
+  'moderate': 'bg-yellow-600',
+  'challenging': 'bg-red-600',
+};
+
+// Determine equipment match color
+const matchColors: Record<string, string> = {
+  'excellent': 'bg-green-600',
+  'good': 'bg-blue-600',
+  'fair': 'bg-yellow-600',
+  'poor': 'bg-red-600',
+};
+
+// Format time
+function formatTime(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Get score color
+function getScoreColor(score: number): string {
+  if (score >= 80) return 'text-green-400';
+  if (score >= 60) return 'text-blue-400';
+  if (score >= 40) return 'text-yellow-400';
+  return 'text-red-400';
+}
+---
+
+<div class="target-card bg-gray-800 rounded-lg p-5 hover:bg-gray-750 transition border border-gray-700 hover:border-blue-500">
+  <!-- Header -->
+  <div class="flex justify-between items-start mb-3">
+    <div class="flex-1">
+      <div class="flex items-center gap-2 mb-1">
+        {rank && (
+          <span class="text-2xl font-bold text-gray-500">#{rank}</span>
+        )}
+        <h3 class="text-xl font-bold">{target.id} - {target.name}</h3>
+      </div>
+      <p class="text-sm text-gray-400">{target.constellation} • {target.type}</p>
+    </div>
+    <div class="text-right">
+      <div class={`text-3xl font-bold ${getScoreColor(target.score)}`}>
+        {target.score}
+      </div>
+      <p class="text-xs text-gray-400">Score</p>
+    </div>
+  </div>
+
+  <!-- Description -->
+  <p class="text-gray-300 text-sm mb-4">{target.description}</p>
+
+  <!-- Badges -->
+  <div class="flex flex-wrap gap-2 mb-4">
+    <span class={`px-2 py-1 rounded text-xs font-medium ${difficultyColors[target.difficulty] || 'bg-gray-600'}`}>
+      {target.difficulty.charAt(0).toUpperCase() + target.difficulty.slice(1)}
+    </span>
+    <span class={`px-2 py-1 rounded text-xs font-medium ${matchColors[target.equipment_match] || 'bg-gray-600'}`}>
+      {target.equipment_match.charAt(0).toUpperCase() + target.equipment_match.slice(1)} Match
+    </span>
+    <span class="px-2 py-1 rounded text-xs font-medium bg-purple-600">
+      Mag {target.magnitude}
+    </span>
+    <span class="px-2 py-1 rounded text-xs font-medium bg-indigo-600">
+      {target.size_arcmin}' size
+    </span>
+  </div>
+
+  <!-- Visibility Info -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-sm">
+    <div class="bg-gray-700 rounded p-2">
+      <p class="text-gray-400 text-xs">Peak Time</p>
+      <p class="font-semibold">{formatTime(target.visibility.peak_time)}</p>
+    </div>
+    <div class="bg-gray-700 rounded p-2">
+      <p class="text-gray-400 text-xs">Peak Alt</p>
+      <p class="font-semibold">{target.visibility.peak_altitude.toFixed(1)}°</p>
+    </div>
+    <div class="bg-gray-700 rounded p-2">
+      <p class="text-gray-400 text-xs">Duration</p>
+      <p class="font-semibold">{target.visibility.duration_hours.toFixed(1)}h</p>
+    </div>
+    <div class="bg-gray-700 rounded p-2">
+      <p class="text-gray-400 text-xs">Moon Sep</p>
+      <p class="font-semibold">{target.moon_separation.toFixed(0)}°</p>
+    </div>
+  </div>
+
+  <!-- Action Button -->
+  <button
+    class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition"
+    onclick={`window.location.href='/target/${target.id}'`}
+  >
+    View Details
+  </button>
+</div>

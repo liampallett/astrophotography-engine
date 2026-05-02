@@ -1,0 +1,194 @@
+---
+// Observation Time Selector Component
+---
+
+<div class="observation-selector-container bg-gray-800 rounded-lg p-6 mb-6">
+  <h2 class="text-2xl font-bold mb-4">🌙 Observation Details</h2>
+  <p class="text-gray-400 mb-4">When do you plan to observe?</p>
+  
+  <div class="space-y-4">
+    <!-- Date Selection -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label for="obs-date" class="block text-sm font-medium mb-2">
+          Date <span class="text-red-400">*</span>
+        </label>
+        <input
+          type="date"
+          id="obs-date"
+          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          required
+        />
+        <p class="text-xs text-gray-400 mt-1">Select your observation date</p>
+      </div>
+      <div>
+        <label for="obs-time" class="block text-sm font-medium mb-2">
+          Start Time <span class="text-red-400">*</span>
+        </label>
+        <input
+          type="time"
+          id="obs-time"
+          value="21:00"
+          class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          required
+        />
+        <p class="text-xs text-gray-400 mt-1">When will you start observing?</p>
+      </div>
+    </div>
+
+    <!-- Duration -->
+    <div>
+      <label for="duration" class="block text-sm font-medium mb-2">
+        Duration (hours) <span class="text-red-400">*</span>
+      </label>
+      <input
+        type="range"
+        id="duration"
+        min="1"
+        max="12"
+        step="0.5"
+        value="4"
+        class="w-full"
+      />
+      <div class="flex justify-between text-sm text-gray-400 mt-1">
+        <span>1 hour</span>
+        <span id="duration-display" class="text-blue-400 font-semibold">4 hours</span>
+        <span>12 hours</span>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">How long will you observe?</p>
+    </div>
+
+    <!-- Preferences -->
+    <div class="bg-gray-700 rounded-lg p-4">
+      <h3 class="text-lg font-semibold mb-3">Preferences</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="min-altitude" class="block text-sm font-medium mb-2">
+            Minimum Altitude (degrees)
+          </label>
+          <input
+            type="number"
+            id="min-altitude"
+            min="0"
+            max="90"
+            step="5"
+            value="30"
+            class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p class="text-xs text-gray-400 mt-1">Objects below this altitude will be filtered out</p>
+        </div>
+        <div>
+          <label for="moon-avoidance" class="block text-sm font-medium mb-2">
+            Moon Avoidance (degrees)
+          </label>
+          <input
+            type="number"
+            id="moon-avoidance"
+            min="0"
+            max="90"
+            step="5"
+            value="30"
+            class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p class="text-xs text-gray-400 mt-1">Minimum angular distance from the moon</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Presets -->
+    <div>
+      <h3 class="text-sm font-medium mb-2">Quick Presets</h3>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <button
+          class="time-preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+          data-time="21:00"
+          data-duration="4"
+        >
+          Evening (9 PM, 4h)
+        </button>
+        <button
+          class="time-preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+          data-time="22:00"
+          data-duration="6"
+        >
+          Night (10 PM, 6h)
+        </button>
+        <button
+          class="time-preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+          data-time="00:00"
+          data-duration="5"
+        >
+          Midnight (12 AM, 5h)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Get form elements
+  const dateInput = document.getElementById('obs-date') as HTMLInputElement;
+  const timeInput = document.getElementById('obs-time') as HTMLInputElement;
+  const durationInput = document.getElementById('duration') as HTMLInputElement;
+  const durationDisplay = document.getElementById('duration-display') as HTMLElement;
+  const minAltitudeInput = document.getElementById('min-altitude') as HTMLInputElement;
+  const moonAvoidanceInput = document.getElementById('moon-avoidance') as HTMLInputElement;
+
+  // Set default date to today
+  const today = new Date().toISOString().split('T')[0];
+  dateInput.value = today;
+
+  // Update duration display
+  function updateDurationDisplay() {
+    const hours = parseFloat(durationInput.value);
+    durationDisplay.textContent = `${hours} hour${hours !== 1 ? 's' : ''}`;
+    
+    // Store in sessionStorage
+    storeObservationData();
+  }
+
+  durationInput?.addEventListener('input', updateDurationDisplay);
+
+  // Store observation data
+  function storeObservationData() {
+    const date = dateInput.value;
+    const time = timeInput.value + ':00'; // Add seconds
+    const duration = parseFloat(durationInput.value);
+    const minAltitude = parseFloat(minAltitudeInput.value);
+    const moonAvoidance = parseFloat(moonAvoidanceInput.value);
+
+    sessionStorage.setItem('observation', JSON.stringify({
+      date: date,
+      start_time: time,
+      duration_hours: duration
+    }));
+
+    sessionStorage.setItem('preferences', JSON.stringify({
+      min_altitude: minAltitude,
+      moon_avoidance_deg: moonAvoidance,
+      include_planets: false
+    }));
+  }
+
+  // Update storage when inputs change
+  dateInput?.addEventListener('change', storeObservationData);
+  timeInput?.addEventListener('change', storeObservationData);
+  durationInput?.addEventListener('change', storeObservationData);
+  minAltitudeInput?.addEventListener('change', storeObservationData);
+  moonAvoidanceInput?.addEventListener('change', storeObservationData);
+
+  // Handle time preset buttons
+  const timePresetButtons = document.querySelectorAll('.time-preset-btn');
+  timePresetButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const btn = button as HTMLButtonElement;
+      timeInput.value = btn.dataset.time || '21:00';
+      durationInput.value = btn.dataset.duration || '4';
+      updateDurationDisplay();
+    });
+  });
+
+  // Initialize
+  updateDurationDisplay();
+  storeObservationData();
+</script>
