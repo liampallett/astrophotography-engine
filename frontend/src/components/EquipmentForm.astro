@@ -4,14 +4,54 @@
 
 <div class="equipment-form-container bg-gray-800 rounded-lg p-6 mb-6">
   <h2 class="text-2xl font-bold mb-4">🔭 Your Equipment</h2>
-  <p class="text-gray-400 mb-4">Enter your telescope and camera specifications</p>
+  <p class="text-gray-400 mb-4">Enter your telescope/lens and camera specifications</p>
   
   <div class="space-y-4">
-    <!-- Telescope Section -->
+    <!-- Equipment Type Selector -->
     <div class="bg-gray-700 rounded-lg p-4">
-      <h3 class="text-lg font-semibold mb-3">Telescope</h3>
+      <h3 class="text-lg font-semibold mb-3">Equipment Type</h3>
+      <div class="flex gap-4">
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="radio"
+            name="equipment-type"
+            value="telescope"
+            checked
+            class="mr-2"
+          />
+          <span>🔭 Telescope</span>
+        </label>
+        <label class="flex items-center cursor-pointer">
+          <input
+            type="radio"
+            name="equipment-type"
+            value="lens"
+            class="mr-2"
+          />
+          <span>📷 Camera Lens</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Optical System Section -->
+    <div class="bg-gray-700 rounded-lg p-4">
+      <h3 class="text-lg font-semibold mb-3" id="optical-title">Telescope</h3>
+      
+      <!-- Aperture Input Mode Toggle -->
+      <div class="mb-4">
+        <label class="flex items-center cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            id="use-f-number"
+            class="mr-2"
+          />
+          <span>Use f-number (aperture ratio) instead</span>
+        </label>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
+        <!-- Aperture or F-Number -->
+        <div id="aperture-container">
           <label for="aperture" class="block text-sm font-medium mb-2">
             Aperture (mm) <span class="text-red-400">*</span>
           </label>
@@ -19,15 +59,31 @@
             type="number"
             id="aperture"
             step="1"
-            min="30"
+            min="10"
             max="2000"
             placeholder="200"
             value="200"
             class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
           />
-          <p class="text-xs text-gray-400 mt-1">Diameter of your telescope's main lens/mirror</p>
+          <p class="text-xs text-gray-400 mt-1">Diameter of the main lens/mirror</p>
         </div>
+        
+        <div id="f-number-container" style="display: none;">
+          <label for="f-number" class="block text-sm font-medium mb-2">
+            F-Number <span class="text-red-400">*</span>
+          </label>
+          <input
+            type="number"
+            id="f-number"
+            step="0.1"
+            min="0.5"
+            max="20"
+            placeholder="2.0"
+            class="w-full px-4 py-2 bg-gray-600 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p class="text-xs text-gray-400 mt-1">e.g., f/2.0 for a 135mm f/2 lens</p>
+        </div>
+
         <div>
           <label for="focal-length" class="block text-sm font-medium mb-2">
             Focal Length (mm) <span class="text-red-400">*</span>
@@ -36,7 +92,7 @@
             type="number"
             id="focal-length"
             step="1"
-            min="100"
+            min="10"
             max="10000"
             placeholder="1000"
             value="1000"
@@ -110,43 +166,99 @@
     <!-- Common Presets -->
     <div>
       <h3 class="text-sm font-medium mb-2">Quick Presets</h3>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <button
-          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
-          data-aperture="80"
-          data-focal="400"
-          data-width="23.5"
-          data-height="15.6"
-        >
-          80mm Refractor
-        </button>
-        <button
-          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
-          data-aperture="200"
-          data-focal="1000"
-          data-width="23.5"
-          data-height="15.6"
-        >
-          8" SCT
-        </button>
-        <button
-          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
-          data-aperture="150"
-          data-focal="750"
-          data-width="36"
-          data-height="24"
-        >
-          6" Newtonian
-        </button>
-        <button
-          class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
-          data-aperture="102"
-          data-focal="714"
-          data-width="13.2"
-          data-height="8.8"
-        >
-          102mm APO
-        </button>
+      
+      <!-- Telescope Presets -->
+      <div id="telescope-presets" class="space-y-2">
+        <p class="text-xs text-gray-400">Telescopes:</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="telescope"
+            data-aperture="80"
+            data-focal="400"
+            data-width="23.5"
+            data-height="15.6"
+          >
+            80mm Refractor
+          </button>
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="telescope"
+            data-aperture="200"
+            data-focal="1000"
+            data-width="23.5"
+            data-height="15.6"
+          >
+            8" SCT
+          </button>
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="telescope"
+            data-aperture="150"
+            data-focal="750"
+            data-width="36"
+            data-height="24"
+          >
+            6" Newtonian
+          </button>
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="telescope"
+            data-aperture="102"
+            data-focal="714"
+            data-width="13.2"
+            data-height="8.8"
+          >
+            102mm APO
+          </button>
+        </div>
+      </div>
+
+      <!-- Lens Presets -->
+      <div id="lens-presets" class="space-y-2 mt-3">
+        <p class="text-xs text-gray-400">Camera Lenses:</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="lens"
+            data-focal="135"
+            data-fnumber="2.0"
+            data-width="36"
+            data-height="24"
+          >
+            135mm f/2
+          </button>
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="lens"
+            data-focal="200"
+            data-fnumber="2.8"
+            data-width="36"
+            data-height="24"
+          >
+            200mm f/2.8
+          </button>
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="lens"
+            data-focal="85"
+            data-fnumber="1.4"
+            data-width="36"
+            data-height="24"
+          >
+            85mm f/1.4
+          </button>
+          <button
+            class="preset-btn px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+            data-type="lens"
+            data-focal="50"
+            data-fnumber="1.8"
+            data-width="36"
+            data-height="24"
+          >
+            50mm f/1.8
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -155,12 +267,31 @@
 <script>
   // Get form elements
   const apertureInput = document.getElementById('aperture') as HTMLInputElement;
+  const fNumberInput = document.getElementById('f-number') as HTMLInputElement;
   const focalLengthInput = document.getElementById('focal-length') as HTMLInputElement;
   const sensorWidthInput = document.getElementById('sensor-width') as HTMLInputElement;
   const sensorHeightInput = document.getElementById('sensor-height') as HTMLInputElement;
+  const useFNumberCheckbox = document.getElementById('use-f-number') as HTMLInputElement;
+  const apertureContainer = document.getElementById('aperture-container') as HTMLElement;
+  const fNumberContainer = document.getElementById('f-number-container') as HTMLElement;
+  const opticalTitle = document.getElementById('optical-title') as HTMLElement;
   
   const fovWidthDisplay = document.getElementById('fov-width') as HTMLElement;
   const fovHeightDisplay = document.getElementById('fov-height') as HTMLElement;
+
+  const equipmentTypeRadios = document.querySelectorAll('input[name="equipment-type"]') as NodeListOf<HTMLInputElement>;
+
+  // Get current aperture value (from either input)
+  function getCurrentAperture(): number {
+    if (useFNumberCheckbox.checked && fNumberInput.value) {
+      const fNumber = parseFloat(fNumberInput.value);
+      const focalLength = parseFloat(focalLengthInput.value);
+      if (!isNaN(fNumber) && !isNaN(focalLength) && fNumber > 0) {
+        return focalLength / fNumber;
+      }
+    }
+    return parseFloat(apertureInput.value) || 0;
+  }
 
   // Calculate field of view
   function calculateFOV() {
@@ -184,27 +315,93 @@
     fovWidthDisplay.textContent = fovWidthArcmin.toFixed(1);
     fovHeightDisplay.textContent = fovHeightArcmin.toFixed(1);
 
+    // Get equipment type
+    const equipmentType = (document.querySelector('input[name="equipment-type"]:checked') as HTMLInputElement)?.value || 'telescope';
+
     // Store in sessionStorage
-    sessionStorage.setItem('equipment', JSON.stringify({
-      aperture_mm: parseFloat(apertureInput?.value),
+    const equipmentData: any = {
+      equipment_type: equipmentType,
       focal_length_mm: focalLength,
       sensor_width_mm: sensorWidth,
       sensor_height_mm: sensorHeight
-    }));
+    };
+
+    // Add aperture or f_number based on current mode
+    if (useFNumberCheckbox.checked && fNumberInput.value) {
+      equipmentData.f_number = parseFloat(fNumberInput.value);
+    } else if (apertureInput.value) {
+      equipmentData.aperture_mm = parseFloat(apertureInput.value);
+    }
+
+    sessionStorage.setItem('equipment', JSON.stringify(equipmentData));
   }
+
+  // Toggle between aperture and f-number input
+  useFNumberCheckbox?.addEventListener('change', () => {
+    if (useFNumberCheckbox.checked) {
+      apertureContainer.style.display = 'none';
+      fNumberContainer.style.display = 'block';
+      apertureInput.removeAttribute('required');
+      fNumberInput.setAttribute('required', 'required');
+    } else {
+      apertureContainer.style.display = 'block';
+      fNumberContainer.style.display = 'none';
+      fNumberInput.removeAttribute('required');
+      apertureInput.setAttribute('required', 'required');
+    }
+    calculateFOV();
+  });
+
+  // Update title based on equipment type
+  equipmentTypeRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      opticalTitle.textContent = radio.value === 'lens' ? 'Camera Lens' : 'Telescope';
+      calculateFOV();
+    });
+  });
 
   // Update FOV when inputs change
   focalLengthInput?.addEventListener('input', calculateFOV);
   sensorWidthInput?.addEventListener('input', calculateFOV);
   sensorHeightInput?.addEventListener('input', calculateFOV);
   apertureInput?.addEventListener('input', calculateFOV);
+  fNumberInput?.addEventListener('input', calculateFOV);
 
   // Handle preset buttons
   const presetButtons = document.querySelectorAll('.preset-btn');
   presetButtons.forEach(button => {
     button.addEventListener('click', () => {
       const btn = button as HTMLButtonElement;
-      apertureInput.value = btn.dataset.aperture || '';
+      const presetType = btn.dataset.type;
+      
+      // Set equipment type
+      if (presetType) {
+        const typeRadio = document.querySelector(`input[name="equipment-type"][value="${presetType}"]`) as HTMLInputElement;
+        if (typeRadio) {
+          typeRadio.checked = true;
+          opticalTitle.textContent = presetType === 'lens' ? 'Camera Lens' : 'Telescope';
+        }
+      }
+
+      // Set values based on preset type
+      if (btn.dataset.fnumber) {
+        // Lens preset with f-number
+        useFNumberCheckbox.checked = true;
+        apertureContainer.style.display = 'none';
+        fNumberContainer.style.display = 'block';
+        fNumberInput.value = btn.dataset.fnumber;
+        fNumberInput.setAttribute('required', 'required');
+        apertureInput.removeAttribute('required');
+      } else if (btn.dataset.aperture) {
+        // Telescope preset with aperture
+        useFNumberCheckbox.checked = false;
+        apertureContainer.style.display = 'block';
+        fNumberContainer.style.display = 'none';
+        apertureInput.value = btn.dataset.aperture;
+        apertureInput.setAttribute('required', 'required');
+        fNumberInput.removeAttribute('required');
+      }
+
       focalLengthInput.value = btn.dataset.focal || '';
       sensorWidthInput.value = btn.dataset.width || '';
       sensorHeightInput.value = btn.dataset.height || '';

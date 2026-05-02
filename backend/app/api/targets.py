@@ -55,7 +55,10 @@ def calculate_targets(request: TargetCalculationRequest):
     try:
         # Convert request models to dictionaries
         location = request.location.model_dump()
-        equipment = request.equipment.model_dump()
+        equipment_dict = request.equipment.model_dump()
+        # Ensure aperture_mm is calculated if using f_number
+        equipment_dict['aperture_mm'] = request.equipment.get_aperture_mm()
+        equipment = equipment_dict
         observation = request.observation.model_dump()
         preferences = request.preferences.model_dump()
         
@@ -184,7 +187,8 @@ def calculate_targets(request: TargetCalculationRequest):
         # Return response
         return TargetCalculationResponse(
             targets=top_targets,
-            moon=moon_model
+            moon=moon_model,
+            observation_date=observation['date'].isoformat()
         )
         
     except HTTPException:
