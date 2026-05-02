@@ -20,7 +20,7 @@ Then visit: **http://localhost:4321**
 
 - **Backend (FastAPI)**: Python API with astronomy calculations
 - **Frontend (Astro)**: Modern web interface with React components
-- **Database**: SQLite with 10 Messier catalogue objects
+- **Database**: SQLite with complete 110 Messier catalogue objects
 
 ## 🎯 Current Features
 
