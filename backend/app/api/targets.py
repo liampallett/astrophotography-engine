@@ -180,8 +180,10 @@ def calculate_targets(request: TargetCalculationRequest):
         moon_model = MoonDataModel(
             phase=moon_data['phase'],
             illumination=moon_data['illumination'],
-            rise_time=None,  # Rise/set times would require additional calculation
-            set_time=None
+            rise_time=None,
+            set_time=None,
+            altitude=moon_data.get('altitude'),
+            azimuth=moon_data.get('azimuth')
         )
         
         # Return response

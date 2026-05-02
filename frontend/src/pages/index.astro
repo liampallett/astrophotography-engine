@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import LocationInput from '../components/LocationInput.astro';
 import EquipmentForm from '../components/EquipmentForm.astro';
 import ObservationSelector from '../components/ObservationSelector.astro';
+import SkyMap from '../components/SkyMap.tsx';
 import { checkApiHealth } from '../lib/api';
 
 // Check if backend is running
@@ -104,8 +105,8 @@ try {
       </div>
 
       <!-- Sky Map Visualization -->
-      <div id="skymap-container" class="mb-8">
-        <!-- SkyMap component will be rendered here by JavaScript -->
+      <div class="mb-8">
+        <SkyMap client:only="react" targets={[]} observationTime={new Date().toISOString()} />
       </div>
 
       <div id="targets-container" class="grid grid-cols-1 gap-6 mb-8">
@@ -146,8 +147,6 @@ try {
 <script>
   import { calculateTargets, formatMoonPhase, type TargetCalculationRequest } from '../lib/api';
 
-  let skymapRoot: any = null;
-
   const calculateBtn = document.getElementById('calculate-btn') as HTMLButtonElement;
   const inputSection = document.getElementById('input-section') as HTMLElement;
   const loadingSection = document.getElementById('loading-section') as HTMLElement;
@@ -157,7 +156,6 @@ try {
   const retryBtn = document.getElementById('retry-btn') as HTMLButtonElement;
   const newCalculationBtn = document.getElementById('new-calculation-btn') as HTMLButtonElement;
   const targetsContainer = document.getElementById('targets-container') as HTMLElement;
-  const skymapContainer = document.getElementById('skymap-container') as HTMLElement;
   const moonPhaseEl = document.getElementById('moon-phase') as HTMLElement;
   const moonIlluminationEl = document.getElementById('moon-illumination') as HTMLElement;
 
@@ -232,29 +230,17 @@ try {
       difficulty: target.difficulty.charAt(0).toUpperCase() + target.difficulty.slice(1)
     }));
     
-    // Render SkyMap using React (reuse root to avoid leak on recalculation)
-    import('react').then(React => {
-      import('react-dom/client').then(ReactDOM => {
-        import('../components/SkyMap.tsx').then(({ default: SkyMap }) => {
-          if (!skymapRoot) {
-            skymapRoot = ReactDOM.createRoot(skymapContainer);
-          }
-          skymapRoot.render(
-            React.createElement(SkyMap, {
-              targets: transformedTargets,
-              moon: (response.moon?.altitude != null && response.moon?.azimuth != null)
-                ? {
-                    altitude: response.moon.altitude,
-                    azimuth: response.moon.azimuth,
-                    phase: response.moon.phase || 'Unknown'
-                  }
-                : undefined,
-              observationTime: `${observation.date}T${observation.start_time}:00`
-            })
-          );
-        });
-      });
-    });
+    // Push data to the SkyMap island via window and a custom event.
+    // The results section must be visible first so Chart.js reads real canvas dimensions.
+    (window as any).__SKYMAP_DATA__ = {
+      useCalculatedData: true,
+      targets: transformedTargets,
+      moon: (response.moon?.altitude != null && response.moon?.azimuth != null)
+        ? { altitude: response.moon.altitude, azimuth: response.moon.azimuth, phase: response.moon.phase || 'Unknown' }
+        : undefined,
+      observationTime: `${observation.date}T${observation.start_time}`,
+    };
+    window.dispatchEvent(new CustomEvent('skymap-data-ready'));
 
     // Display targets
     targetsContainer.innerHTML = '';

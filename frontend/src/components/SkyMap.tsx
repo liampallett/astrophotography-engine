@@ -71,21 +71,36 @@ const getDifficultyColor = (difficulty: string): string => {
 };
 
 const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, observationTime: propObservationTime }) => {
-  // Check if we have calculated data from window object
-  const skymapData = typeof window !== 'undefined' && (window as any).__SKYMAP_DATA__;
-  const targets = skymapData?.useCalculatedData ? skymapData.targets : propTargets;
-  const moon = skymapData?.useCalculatedData ? skymapData.moon : propMoon;
-  const observationTime = skymapData?.useCalculatedData ? skymapData.observationTime : propObservationTime;
+  // Reactively receive calculated data via window.__SKYMAP_DATA__ + 'skymap-data-ready' event.
+  const readWindowData = () =>
+    typeof window !== 'undefined' ? (window as any).__SKYMAP_DATA__ ?? null : null;
 
-  const [timeOffset, setTimeOffset] = useState(0); // Hours offset from observationTime
-  const [currentTime, setCurrentTime] = useState(new Date(observationTime));
+  const [liveData, setLiveData] = useState<any>(readWindowData);
 
-  // Update current time when timeOffset changes
   useEffect(() => {
-    const baseTime = new Date(observationTime);
-    const newTime = new Date(baseTime.getTime() + timeOffset * 60 * 60 * 1000);
-    setCurrentTime(newTime);
+    const handler = () => setLiveData(readWindowData());
+    window.addEventListener('skymap-data-ready', handler);
+    return () => window.removeEventListener('skymap-data-ready', handler);
+  }, []);
+
+  const active = liveData?.useCalculatedData ? liveData : null;
+  const targets: SkyMapProps['targets'] = active?.targets ?? propTargets;
+  const moon: SkyMapProps['moon'] = active?.moon ?? propMoon;
+  const observationTime: string = active?.observationTime ?? propObservationTime;
+
+  const [timeOffset, setTimeOffset] = useState(0);
+  const [currentTime, setCurrentTime] = useState(() => new Date(observationTime));
+
+  // Keep currentTime in sync with slider and reset when new data arrives
+  useEffect(() => {
+    const base = new Date(observationTime);
+    setCurrentTime(new Date(base.getTime() + timeOffset * 3600000));
   }, [timeOffset, observationTime]);
+
+  // Reset slider when new observation data arrives
+  useEffect(() => {
+    setTimeOffset(0);
+  }, [observationTime]);
 
   // Calculate target positions based on current time
   const targetPositions = useMemo(() => {
@@ -169,13 +184,17 @@ const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, o
     ],
   };
 
+  // Don't render the chart until we have real data from the API
+  if (!active) {
+    return null;
+  }
+
   const REFERENCE_LABELS = new Set(['Horizon', '30° Altitude', '60° Altitude']);
 
   // Chart options
   const options: any = {
     responsive: true,
-    maintainAspectRatio: true,
-    aspectRatio: 1,
+    maintainAspectRatio: false,
     scales: {
       x: {
         min: -100,
@@ -228,23 +247,26 @@ const SkyMap: React.FC<SkyMapProps> = ({ targets: propTargets, moon: propMoon, o
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-white mb-2">Sky Map</h2>
         <p className="text-gray-300 text-sm">
-          {currentTime.toLocaleString('en-US', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })}
+          {isNaN(currentTime.getTime())
+            ? observationTime
+            : currentTime.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
         </p>
       </div>
 
       {/* Chart Container with compass labels */}
-      <div className="relative w-full max-w-2xl mx-auto mb-6">
-        <div className="aspect-square">
-          <Chart type="scatter" data={chartData} options={options} />
+      {/* Use padding-bottom trick instead of aspect-square: Chart.js reads clientHeight */}
+      {/* at init time before CSS aspect-ratio is resolved, giving height=0 canvas. */}
+      <div className="w-full max-w-2xl mx-auto mb-6">
+        <div style={{ position: 'relative', paddingBottom: '100%' }}>
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <Chart type="scatter" data={chartData} options={options} />
+          </div>
+          {/* Compass direction labels */}
+          <div style={{ position: 'absolute', top: '4px', left: '50%', transform: 'translateX(-50%)' }} className="text-gray-200 font-bold text-sm pointer-events-none">N</div>
+          <div style={{ position: 'absolute', bottom: '4px', left: '50%', transform: 'translateX(-50%)' }} className="text-gray-200 font-bold text-sm pointer-events-none">S</div>
+          <div style={{ position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)' }} className="text-gray-200 font-bold text-sm pointer-events-none">W</div>
+          <div style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)' }} className="text-gray-200 font-bold text-sm pointer-events-none">E</div>
         </div>
-        {/* Compass direction labels */}
-        <div className="absolute top-1 left-1/2 -translate-x-1/2 text-gray-200 font-bold text-sm pointer-events-none">N</div>
-        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-gray-200 font-bold text-sm pointer-events-none">S</div>
-        <div className="absolute left-1 top-1/2 -translate-y-1/2 text-gray-200 font-bold text-sm pointer-events-none">W</div>
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-200 font-bold text-sm pointer-events-none">E</div>
       </div>
 
       {/* Time Slider */}
