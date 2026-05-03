@@ -1,121 +1,128 @@
-# IBM Bob's Contributions to the Astrophotography Engine
+# IBM Bob — Task Contributions
 
-IBM Bob was the AI pair-programmer throughout this hackathon project. Every source file carries a `# Made with Bob` or `// Made with Bob` signature. This document catalogues Bob's specific technical contributions across the codebase.
+This document lists the tasks IBM Bob completed during development of the astrophotography engine, with a short summary of each and a link to the full task transcript.
 
----
-
-## Project Planning
-
-Bob produced the full technical specification before a single line of code was written — system architecture, database schema, REST API design, component hierarchy, scoring algorithm design, and a phased development roadmap. These artefacts live in `docs/planning/project-plan.md` and `docs/planning/development-kickoff.md`.
+> **Disclaimer:** Not all tasks are listed here. Some tasks were deleted during development to keep the record focused — specifically tasks that were split into smaller pieces, superseded by a follow-up task, or were purely exploratory with no lasting output. Every task listed below represents a distinct, self-contained unit of work.
 
 ---
 
-## Backend
+## May 1, 2026
 
-### `backend/app/main.py`
-- FastAPI application skeleton with CORS middleware configured for the Astro dev server
-- Health check endpoint and root info endpoint
-- Router registration for all sub-APIs
+### [Initial Project Planning](bob-contributions/bob_task_may-1-2026_3-20-17-pm.md)
+*3:20 PM*
 
-### `backend/app/database/init_db.py`
-- SQLite schema creation script
-- Seeded the complete **110-object Messier Catalogue** with accurate coordinates (RA/Dec), visual magnitudes, angular sizes, best viewing months, minimum aperture recommendations, difficulty ratings, descriptions, imaging tips, and distances in light-years
-
-### `backend/app/models/request.py` and `backend/app/models/response.py`
-- All Pydantic request and response models: `LocationModel`, `EquipmentModel` (with `f_number` → `aperture_mm` derived property), `ObservationModel`, `PreferencesModel`, `TargetCalculationRequest`
-- Response models: `VisibilityModel`, `TargetModel`, `MoonDataModel` (with optional `altitude`/`azimuth` for sky map use), `TargetCalculationResponse`, `MessierObjectResponse`
-
-### `backend/app/services/visibility.py`
-Implements all Astropy-based astronomy calculations:
-
-- **`calculate_target_visibility`** — samples altitude/azimuth at 15-minute intervals across the observation window, finds the peak, and counts hours above 30°
-- **`calculate_moon_separation`** — angular separation between a target and the moon using `SkyCoord.separation()`
-- **`calculate_moon_data`** — moon altitude, azimuth, illumination, and phase; uses **ecliptic elongation (0–360°)** via `GeocentricMeanEcliptic` to correctly distinguish waxing from waning phases (a naive `separation()` call only gives 0–180° and cannot tell the difference)
-- **`get_moon_phase_name`** — maps elongation to all 8 named phases with correct 45° boundaries
-- **`calculate_sun_position`** — sun altitude/azimuth and twilight classification (civil, nautical, astronomical, night); used to reject daytime observation requests
-
-### `backend/app/services/ranking.py`
-Multi-factor scoring algorithm (0–100) with weighted components:
-
-| Factor | Weight | Logic |
-|--------|--------|-------|
-| Altitude | 40% | Piecewise linear: <30° → 0–30 pts, 30–60° → 30–80 pts, >60° → 80–100 pts |
-| Brightness | 25% | Inverse of magnitude; mag < 5 scores 90–100, mag > 10 scores 0–30 |
-| FOV match | 15% | Object/FOV size ratio; ideal at 30–70% of frame |
-| Moon separation | 10% | <30° → 0–40 pts, 30–60° → 40–70 pts, >60° → 70–100 pts |
-| Weather | 10% | `100 - cloud_cover`; weights redistributed proportionally when no weather data is available |
-
-Also implements:
-- **`calculate_field_of_view`** — diagonal FOV in arcminutes from sensor dimensions and focal length
-- **`calculate_size_match_score`** — object/FOV ratio scoring used separately for equipment match labels
-- **`determine_difficulty`** — classifies targets easy/moderate/challenging by magnitude, angular size, and user aperture vs. `min_aperture_mm`
-- **`calculate_imaging_time_recommendation`** — suggested sub-exposure length and frame count based on magnitude, aperture, and moon illumination
-
-### `backend/app/api/targets.py`
-The main `/targets/calculate` endpoint orchestrating the full pipeline:
-1. Parse and validate request
-2. Reject non-nighttime observation times
-3. Fetch all Messier objects from SQLite
-4. For each object: compute visibility, check altitude/moon avoidance preferences, score, classify difficulty, compute equipment match
-5. Sort by score, return top 10
-Also provides `/targets/tonight` (quick endpoint with sensible defaults) and `/targets/visibility/{id}` (detailed per-object breakdown).
-
-### `backend/app/api/catalogue.py`
-`GET /catalogue/messier` and `GET /catalogue/messier/{id}` with proper `try/finally` connection handling.
-
-### `backend/app/api/location.py` and `backend/app/api/moon.py`
-Location geocoding/reverse-geocoding/timezone and standalone moon phase/position endpoints.
+Clarified requirements for the astrophotography target suggestion engine through a structured Q&A. Established the core stack — Astro frontend, Python FastAPI backend, Messier Catalogue (110 objects), beginner-friendly focus, weather and moon phase integration — and produced the initial `ASTROPHOTOGRAPHY_ENGINE_PLAN.md`.
 
 ---
 
-## Frontend
+### [Frontend & .gitignore Review](bob-contributions/bob_task_may-1-2026_3-30-26-pm.md)
+*3:30 PM*
 
-### `frontend/src/lib/api.ts`
-Complete TypeScript API client (`// Made with Bob - Phase 4`):
-- All type interfaces matching the backend Pydantic models
-- `calculateTargets`, `getMessierCatalogue`, `getMessierObject`, `getMoonInfo`, `getMoonPhase`, `geocodeAddress`, `reverseGeocode`, `getTimezone`, `getTonightTargets`, `getTargetVisibility`, `checkApiHealth`
-- Utility formatters: `formatMoonPhase` (all 8 phases), `formatDifficulty`, `formatEquipmentMatch`
-
-### `frontend/src/components/SkyMap.tsx`
-Interactive sky map built on Chart.js scatter chart (`// Made with Bob`):
-
-- **Coordinate system** — polar projection: `radius = 90 − altitude`, `x = sin(az) × radius`, `y = cos(az) × radius`; zenith at origin, horizon at radius 90, North up
-- **Reference rings** — `circleAt(altitude)` generates 361-point circles at 0°, 30°, and 60° altitude
-- **Time simulation** — altitude falls off `~10°/hr` from peak; azimuth drifts `15°/hr` (Earth's rotation); time slider covers ±6 hours
-- **Astro island data bridge** — `window.__SKYMAP_DATA__` + `CustomEvent('skymap-data-ready')` pattern decouples the Astro `<script>` from the React island; component resets slider on new data arrival
-- **Chart.js integration** — correct registration of `ScatterController`, `LinearScale`, `PointElement`, `LineElement`; `maintainAspectRatio: false` with padding-bottom: 100% container trick to give the canvas real pixel dimensions at init time
-- Compass direction overlays (N/S/E/W), difficulty colour coding, tooltip filter suppressing reference-circle labels, visible-targets list sorted by altitude
+Reviewed the Astro frontend scaffold and `.gitignore`. Identified two issues: the `@astrojs/react` integration was installed but not registered in `astro.config.mjs`, and the CSS import path in `index.astro` pointed to a non-existent file name.
 
 ---
 
-## Documentation
+### [Python Setup Troubleshooting](bob-contributions/bob_task_may-1-2026_3-42-31-pm.md)
+*3:42 PM*
 
-Bob authored all 11 documents now living in `/docs`:
-
-- `docs/planning/project-plan.md` — original technical specification
-- `docs/planning/development-kickoff.md` — phase-by-phase implementation guide
-- `docs/planning/quick-start-guide.md` — 5-minute setup reference
-- `docs/planning/hackathon-overview.md` — project overview and roadmap
-- `docs/planning/catalogue-expansion.md` — notes on the 20 → 110 object expansion
-- `docs/api/api-reference.md` — complete REST API reference
-- `docs/user-guide.md` — end-user guide for the web application
-- `docs/setup.md` — first-time environment setup
-- `docs/run.md` — quick server start reference
-- `docs/backend-setup.md` — backend-specific setup instructions
-- `docs/frontend/skymap-integration.md` and `skymap-quick-start.md` — SkyMap component guides
+Diagnosed a "command not found: python / python3" error on macOS. Confirmed Python was not on the system PATH and recommended installing it via Homebrew (`brew install python3`).
 
 ---
 
-## Summary
+### [Development Roadmap Check](bob-contributions/bob_task_may-1-2026_4-45-18-pm.md)
+*4:45 PM*
 
-| Area | Files authored or co-authored |
-|------|-------------------------------|
-| Backend services | `visibility.py`, `ranking.py` |
-| Backend API | `targets.py`, `catalogue.py`, `location.py`, `moon.py`, `main.py` |
-| Backend models | `request.py`, `response.py` |
-| Backend database | `init_db.py` + 110 Messier objects |
-| Frontend components | `SkyMap.tsx` |
-| Frontend API client | `api.ts` |
-| Documentation | 11 docs in `/docs` |
+Reviewed the outstanding todo list and summarised what was next up for implementation, helping prioritise the next phase of development.
 
-All source files are signed `Made with Bob`.
+---
+
+## May 2, 2026
+
+### [Backend Server Diagnosis](bob-contributions/bob_task_may-2-2026_7-50-50-pm.md)
+*7:50 PM*
+
+Investigated why the backend server could not start despite two `./start.sh` terminals running. Checked for a port 8000 conflict using `lsof`, reviewed the `start.sh` script, and verified backend dependencies were installed.
+
+---
+
+### [Location Search Investigation](bob-contributions/bob_task_may-2-2026_7-52-57-pm.md)
+*7:52 PM*
+
+Read and analysed the geocoding pipeline — `location.py`, `LocationInput.astro`, and `api.ts` — to diagnose why location searches were failing. Found both a Nominatim user-agent compliance issue and a frontend/backend endpoint mismatch.
+
+---
+
+### [Nominatim User-Agent Fix](bob-contributions/bob_task_may-2-2026_7-53-48-pm.md)
+*7:53 PM*
+
+Updated the Nominatim geocoder user-agent string in `backend/app/api/location.py` to include contact information (`astrophotography-target-finder/2.0 (contact@example.com)`), bringing it into compliance with Nominatim's usage policy.
+
+---
+
+### [Location 404 Diagnosis](bob-contributions/bob_task_may-2-2026_7-56-20-pm.md)
+*7:56 PM*
+
+Investigated a `404 Not Found` on `POST /api/location/search`. Traced the issue to a route mismatch: the frontend was calling an endpoint that did not exist; the backend's actual route was `GET /api/v1/location/geocode`.
+
+---
+
+### [Frontend API Endpoint Fix](bob-contributions/bob_task_may-2-2026_7-57-09-pm.md)
+*7:57 PM*
+
+Updated `frontend/src/lib/api.ts` to call the correct `GET /api/v1/location/geocode` endpoint, switching from a POST body to a query parameter (`address`).
+
+---
+
+### [Nominatim 403 Comprehensive Fix](bob-contributions/bob_task_may-2-2026_7-59-13-pm.md)
+*7:59 PM*
+
+Applied deeper fixes to the persistent Nominatim 403 error: added a mandatory 1-second delay between requests, improved the user-agent header, added a `Referer` header, and implemented retry logic with exponential backoff.
+
+---
+
+### [Switch to ArcGIS Geocoding](bob-contributions/bob_task_may-2-2026_8-04-41-pm.md)
+*8:04 PM*
+
+Replaced Nominatim with the ArcGIS geocoding service in `location.py`. ArcGIS requires no API key, has more generous rate limits, and no strict user-agent requirements — resolving the recurring 403 issues definitively.
+
+---
+
+### [Equipment Validation Investigation](bob-contributions/bob_task_may-2-2026_8-06-46-pm.md)
+*8:06 PM*
+
+Diagnosed a spurious "please enter equipment details" error that appeared even when all fields were filled in. Traced it to an overly strict validation check that only looked for `aperture_mm` and ignored the alternative `f_number` input mode.
+
+---
+
+### [Equipment Validation Fix](bob-contributions/bob_task_may-2-2026_8-07-08-pm.md)
+*8:07 PM*
+
+Fixed the validation logic in `frontend/src/pages/index.astro` to accept either `aperture_mm` or `f_number`, and to also validate the required sensor dimension fields.
+
+---
+
+### [SkyMap Component Creation](bob-contributions/bob_task_may-2-2026_8-13-14-pm.md)
+*8:13 PM*
+
+Created `frontend/src/components/SkyMap.tsx` — an interactive React component rendering a polar plot of the night sky using Chart.js. Features include target markers colour-coded by difficulty, moon position, altitude circles (30°/60°/90°), cardinal direction labels, and a time slider to animate target movement across the observation window.
+
+---
+
+### [Development Stage Review](bob-contributions/bob_task_may-2-2026_8-16-38-pm.md)
+*8:16 PM*
+
+Reviewed the current state of the project against the original plan, confirming which phases were complete and identifying what work remained.
+
+---
+
+### [SkyMap Debug & Fix](bob-contributions/bob_task_may-2-2026_8-34-06-pm.md)
+*8:34 PM*
+
+Debugged the SkyMap component not rendering on the `/skymap-demo` page. Investigated Chart.js registration, the `client:load` Astro island directive, required prop passing, and TypeScript compilation errors, then implemented the fix.
+
+---
+
+### [Next Steps Planning](bob-contributions/bob_task_may-2-2026_8-54-09-pm.md)
+*8:54 PM*
+
+Reviewed the application's completed features and outstanding gaps, then recommended and prioritised the next set of features to implement.
